@@ -116,14 +116,14 @@ class TransE:
 		# self.__norm = norm
 		self.__evaluation_size = evaluation_size
 		bound = 6 / math.sqrt(self.__dimension)
-		with tf.device('/cpu'):
-			self.__embedding_entity = tf.get_variable('embedding_entity', [self.__num_entity, self.__dimension],
-													   initializer=tf.random_uniform_initializer(minval=-bound, maxval=bound, seed = 123))
-			self.__embedding_relation = tf.get_variable('embedding_relation', [self.__num_relation, self.__dimension],
-														 initializer=tf.random_uniform_initializer(minval=-bound, maxval=bound, seed =124))
-			self.__variables.append(self.__embedding_entity)
-			self.__variables.append(self.__embedding_relation)
-			print('finishing initializing')
+#		with tf.device('/cpu'):
+		self.__embedding_entity = tf.get_variable('embedding_entity', [self.__num_entity, self.__dimension],
+												   initializer=tf.random_uniform_initializer(minval=-bound, maxval=bound, seed = 123))
+		self.__embedding_relation = tf.get_variable('embedding_relation', [self.__num_relation, self.__dimension],
+													 initializer=tf.random_uniform_initializer(minval=-bound, maxval=bound, seed =124))
+		self.__variables.append(self.__embedding_entity)
+		self.__variables.append(self.__embedding_relation)
+		print('finishing initializing')
 		
 	def load_data(self):
 		print('loading entity2id.txt ...')
@@ -232,33 +232,33 @@ class TransE:
 
 		
 def train_operation(model, learning_rate=0.01, margin=1.0, optimizer_str = 'gradient'):
-	with tf.device('/cpu'):
-		train_triple_positive_input = tf.placeholder(tf.int32, [None, 3])
-		train_triple_negative_input = tf.placeholder(tf.int32, [None, 3])
+#	with tf.device('/cpu'):
+	train_triple_positive_input = tf.placeholder(tf.int32, [None, 3])
+	train_triple_negative_input = tf.placeholder(tf.int32, [None, 3])
 
-		loss, loss_every, norm_entity = model.train([train_triple_positive_input, train_triple_negative_input])
-		if optimizer_str == 'gradient':
-			optimizer = tf.train.GradientDescentOptimizer(learning_rate = learning_rate)
-		elif optimizer_str == 'rms':
-			optimizer = tf.train.RMSPropOptimizer(learning_rate = learning_rate)
-		elif optimizer_str == 'adam':
-			optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate)
-		else:
-			raise NotImplementedError("Dose not support %s optimizer" %optimizer_str)
+	loss, loss_every, norm_entity = model.train([train_triple_positive_input, train_triple_negative_input])
+	if optimizer_str == 'gradient':
+		optimizer = tf.train.GradientDescentOptimizer(learning_rate = learning_rate)
+	elif optimizer_str == 'rms':
+		optimizer = tf.train.RMSPropOptimizer(learning_rate = learning_rate)
+	elif optimizer_str == 'adam':
+		optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate)
+	else:
+		raise NotImplementedError("Dose not support %s optimizer" %optimizer_str)
 
-		grads = optimizer.compute_gradients(loss, model.variables)
-		op_train = optimizer.apply_gradients(grads)
+	grads = optimizer.compute_gradients(loss, model.variables)
+	op_train = optimizer.apply_gradients(grads)
 
-		return train_triple_positive_input, train_triple_negative_input, loss, op_train, loss_every, norm_entity
+	return train_triple_positive_input, train_triple_negative_input, loss, op_train, loss_every, norm_entity
 
 
 def test_operation(model):
-	with tf.device('/cpu'):
-		test_triple = tf.placeholder(tf.int32, [3])
-		print('finish palceholder')
-		head_rank, tail_rank, norm_head_rank, norm_tail_rank = model.test(test_triple)
-		print('finish model.test')
-		return test_triple, head_rank, tail_rank, norm_head_rank, norm_tail_rank
+#	with tf.device('/cpu'):
+	test_triple = tf.placeholder(tf.int32, [3])
+	print('finish palceholder')
+	head_rank, tail_rank, norm_head_rank, norm_tail_rank = model.test(test_triple)
+	print('finish model.test')
+	return test_triple, head_rank, tail_rank, norm_head_rank, norm_tail_rank
 
 
 def main():
