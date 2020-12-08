@@ -9,6 +9,7 @@ import timeit
 from multiprocessing import JoinableQueue, Queue, Process
 from collections import defaultdict
 
+
 class TransE:
 	@property
 	def variables(self):
@@ -34,7 +35,6 @@ class TransE:
 	def embedding_entity(self):
 		return self.__embedding_entity
 
-
 	@property
 	def embedding_relation(self):
 		return self.__embedding_relation
@@ -46,7 +46,6 @@ class TransE:
 	@property 
 	def tr_h(self):
 		return self.__tr_h
-
 
 	def training_data_batch(self, batch_size = 512):
 		n_triple = len(self.__triple_train)
@@ -79,35 +78,33 @@ class TransE:
 
 			yield train_triple_positive, train_triple_negative, prepare_t
 
-
 	def __init__(self, data_dir, negative_sampling,learning_rate, 
 				 batch_size, max_iter, margin, dimension, norm, evaluation_size, regularizer_weight):
 		# this part for data prepare
-		self.__data_dir=data_dir
-		self.__negative_sampling=negative_sampling
+		self.__data_dir = data_dir
+		self.__negative_sampling = negative_sampling
 		self.__regularizer_weight = regularizer_weight
 		self.__norm = norm
 
-		self.__entity2id={}
-		self.__id2entity={}
-		self.__relation2id={}
-		self.__id2relation={}
+		self.__entity2id = {}
+		self.__id2entity = {}
+		self.__relation2id = {}
+		self.__id2relation = {}
 
-		self.__triple_train=[] #[(head_id, relation_id, tail_id),...]
-		self.__triple_test=[]
-		self.__triple_valid=[]
+		self.__triple_train = []  # [(head_id, relation_id, tail_id),...]
+		self.__triple_test = []
+		self.__triple_valid = []
 		self.__triple = []
 
-		self.__num_entity=0
-		self.__num_relation=0
-		self.__num_triple_train=0
-		self.__num_triple_test=0
-		self.__num_triple_valid=0
+		self.__num_entity = 0
+		self.__num_relation = 0
+		self.__num_triple_train = 0
+		self.__num_triple_test = 0
+		self.__num_triple_valid = 0
 
 		# load all the file: entity2id.txt, relation2id.txt, train.txt, test.txt, valid.txt
 		self.load_data()
 		print('finish preparing data. ')
-
 
 		# this part for the model:
 		self.__learning_rate = learning_rate
@@ -116,7 +113,7 @@ class TransE:
 		self.__margin = margin
 		self.__dimension = dimension
 		self.__variables= []
-		#self.__norm = norm
+		# self.__norm = norm
 		self.__evaluation_size = evaluation_size
 		bound = 6 / math.sqrt(self.__dimension)
 		with tf.device('/cpu'):
@@ -128,28 +125,25 @@ class TransE:
 			self.__variables.append(self.__embedding_relation)
 			print('finishing initializing')
 		
-
-
 	def load_data(self):
 		print('loading entity2id.txt ...')
 		with open(os.path.join(self.__data_dir, 'entity2id.txt')) as f:
 			self.__entity2id = {line.strip().split('\t')[0]: int(line.strip().split('\t')[1]) for line in f.readlines()}
 			self.__id2entity = {value:key for key,value in self.__entity2id.items()}
 
-
 		with open(os.path.join(self.__data_dir,'relation2id.txt')) as f:
 			self.__relation2id = {line.strip().split('\t')[0]: int(line.strip().split('\t')[1]) for line in f.readlines()}
 			self.__id2relation = {value:key for key, value in self.__relation2id.items()}
 
 		def load_triple(self, triplefile):
-			triple_list = [] #[(head_id, relation_id, tail_id),...]
+			triple_list = []  # [(head_id, relation_id, tail_id),...]
 			with open(os.path.join(self.__data_dir, triplefile)) as f:
 				for line in f.readlines():
 					line_list = line.strip().split('\t')
 					assert len(line_list) == 3
 					headid = self.__entity2id[line_list[0]]
-					relationid = self.__relation2id[line_list[1]]
-					tailid = self.__entity2id[line_list[2]]
+					relationid = self.__relation2id[line_list[2]]
+					tailid = self.__entity2id[line_list[1]]
 					triple_list.append((headid, relationid, tailid))
 					self.__hr_t[(headid, relationid)].add(tailid)
 					self.__tr_h[(tailid, relationid)].add(headid)
@@ -174,7 +168,6 @@ class TransE:
 		print('testing triple number: ' + str(self.__num_triple_test))
 		print('valid triple number: ' + str(self.__num_triple_valid))
 
-
 		if self.__negative_sampling == 'bern':
 			self.__relation_property_head = {x:[] for x in range(self.__num_relation)} #{relation_id:[headid1, headid2,...]}
 			self.__relation_property_tail = {x:[] for x in range(self.__num_relation)} #{relation_id:[tailid1, tailid2,...]}
@@ -186,8 +179,6 @@ class TransE:
 										 for x in self.__relation_property_head.keys()} # {relation_id: p, ...} 0< num <1, and for relation replace head entity with the property p
 		else: 
 			print("unif set do'n need to calculate hpt and tph")
-
-
 
 	def train(self, inputs):
 		embedding_relation = self.__embedding_relation
@@ -213,15 +204,13 @@ class TransE:
 		loss_every = tf.maximum(0., score_positive + self.__margin - score_negative)
 		loss_triple = tf.reduce_sum(tf.maximum(0., score_positive + self.__margin - score_negative))
 		self.__loss_regularizer = loss_regularizer = tf.reduce_sum(tf.abs(self.__embedding_relation)) + tf.reduce_sum(tf.abs(self.__embedding_entity))
-		return loss_triple, loss_every, norm_entity_l2sum #+ loss_regularizer*self.__regularizer_weight
-
-
+		return loss_triple, loss_every, norm_entity_l2sum  # + loss_regularizer*self.__regularizer_weight
 
 	def test(self, inputs):
 		embedding_relation = self.__embedding_relation
 		embedding_entity = self.__embedding_entity
 
-		triple_test = inputs # (headid, tailid, tailid)
+		triple_test = inputs  # (headid, tailid, tailid)
 		head_vec = tf.nn.embedding_lookup(embedding_entity, triple_test[0])
 		rel_vec = tf.nn.embedding_lookup(embedding_relation, triple_test[1])
 		tail_vec = tf.nn.embedding_lookup(embedding_entity, triple_test[2])
@@ -239,8 +228,6 @@ class TransE:
 		_, norm_id_replace_head = tf.nn.top_k(tf.reduce_sum(tf.abs(norm_embedding_entity + norm_rel_vec - norm_tail_vec), axis=1), k=self.__num_entity)
 		_, norm_id_replace_tail = tf.nn.top_k(tf.reduce_sum(tf.abs(norm_head_vec + norm_rel_vec - norm_embedding_entity), axis=1), k=self.__num_entity)
 
-
-		
 		return id_replace_head, id_replace_tail, norm_id_replace_head, norm_id_replace_tail
 
 		
@@ -264,6 +251,7 @@ def train_operation(model, learning_rate=0.01, margin=1.0, optimizer_str = 'grad
 
 		return train_triple_positive_input, train_triple_negative_input, loss, op_train, loss_every, norm_entity
 
+
 def test_operation(model):
 	with tf.device('/cpu'):
 		test_triple = tf.placeholder(tf.int32, [3])
@@ -275,7 +263,9 @@ def test_operation(model):
 
 def main():
 	parser = argparse.ArgumentParser(description = "TransE")
-	parser.add_argument('--data_dir', dest='data_dir', type=str, help='the directory of dataset', default='../Fb15k_withtext/')
+#	parser.add_argument('--data_dir', dest='data_dir', type=str, help='the directory of dataset', default='../Fb15k_withtext/')
+	parser.add_argument('--data_dir', dest='data_dir', type=str, help='the directory of dataset',
+						default='C:\wamp64\www\TransE\data\FB15k')
 	parser.add_argument('--learning_rate', dest='learning_rate', type=float, help='learning rate', default=0.01)
 	parser.add_argument('--batch_size', dest='batch_size', type=int, help="batch size", default=4096)
 	parser.add_argument('--max_iter', dest='max_iter', type=int, help='maximum interation', default=100)
@@ -435,5 +425,5 @@ def main():
 				print('iter:%d --norm filter mean rank: %.2f --norm filter hit@10: %.2f' %(n_iter, (norm_filter_mean_rank_head+ norm_filter_mean_rank_tail)/2, (norm_filter_hit10_tail+norm_filter_hit10_head)/2))
 			
 
-if __name__ =="__main__":
+if __name__ == "__main__":
 	main()
