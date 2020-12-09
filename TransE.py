@@ -102,7 +102,7 @@ class TransE:
         self.__num_triple_test = 0
         self.__num_triple_valid = 0
 
-        # load all the file: entity2id.txt, relation2id.txt, train.txt, test.txt, valid.txt
+        # load all the file: entity2id.txt, relation2id.txt, train.txt, test.txt, valid.txt; total 5 files;
         self.load_data()
         print('finish preparing data. ')
 
@@ -138,7 +138,7 @@ class TransE:
                                   f.readlines()}
             self.__id2relation = {value: key for key, value in self.__relation2id.items()}
 
-        def load_triple(self, triplefile):
+        def load_triple(self, triplefile): # generate triple list for train, test and valid;
             triple_list = []  # [(head_id, relation_id, tail_id),...]
             with open(os.path.join(self.__data_dir, triplefile)) as f:
                 for line in f.readlines():
