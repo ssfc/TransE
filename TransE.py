@@ -47,7 +47,7 @@ class TransE:
     def tr_h(self):
         return self.__tr_h
 
-    def training_data_batch(self, batch_size=512):
+    def training_data_batch(self, batch_size=512): # generate positive triples and negative triples;
         n_triple = len(self.__triple_train)
         rand_idx = np.random.permutation(n_triple)
         start = 0
@@ -74,7 +74,7 @@ class TransE:
                     train_triple_negative.append((t[0], t[1], replace_entity_id)) # false triple replaced tail entity
 
             start = end # add a batch size;
-            prepare_t = timeit.default_timer() - start_t # calculate time; 
+            prepare_t = timeit.default_timer() - start_t # calculate time;
 
             yield train_triple_positive, train_triple_negative, prepare_t
 
