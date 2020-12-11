@@ -193,8 +193,8 @@ class TransE:
 
         triple_positive, triple_negative = inputs  # triple_positive:(head_id,relation_id,tail_id)
 
-        norm_entity = tf.nn.l2_normalize(embedding_entity, dim=1)
-        norm_relation = tf.nn.l2_normalize(embedding_relation, dim=1)
+        norm_entity = tf.nn.l2_normalize(embedding_entity, axis=1)
+        norm_relation = tf.nn.l2_normalize(embedding_relation, axis=1)
         norm_entity_l2sum = tf.sqrt(tf.reduce_sum(norm_entity ** 2, axis=1))
 
         embedding_positive_head = tf.nn.embedding_lookup(norm_entity, triple_positive[:, 0])
@@ -225,8 +225,8 @@ class TransE:
         rel_vec = tf.nn.embedding_lookup(embedding_relation, triple_test[1])
         tail_vec = tf.nn.embedding_lookup(embedding_entity, triple_test[2])
 
-        norm_embedding_entity = tf.nn.l2_normalize(embedding_entity, dim=1)
-        norm_embedding_relation = tf.nn.l2_normalize(embedding_relation, dim=1)
+        norm_embedding_entity = tf.nn.l2_normalize(embedding_entity, axis=1)
+        norm_embedding_relation = tf.nn.l2_normalize(embedding_relation, axis=1)
         norm_head_vec = tf.nn.embedding_lookup(norm_embedding_entity, triple_test[0])
         norm_rel_vec = tf.nn.embedding_lookup(norm_embedding_relation, triple_test[1])
         norm_tail_vec = tf.nn.embedding_lookup(norm_embedding_entity, triple_test[2])
@@ -315,10 +315,10 @@ def main():
     with tf.compat.v1.Session() as session:
         tf.compat.v1.global_variables_initializer().run()
 
-        norm_rel = session.run(tf.nn.l2_normalize(model.embedding_relation, dim=1))
-        session.run(tf.assign(model.embedding_relation, norm_rel))
-        norm_ent = session.run(tf.nn.l2_normalize(model.embedding_entity, dim=1))
-        session.run(tf.assign(model.embedding_entity, norm_ent))
+        norm_rel = session.run(tf.nn.l2_normalize(model.embedding_relation, axis=1))
+        session.run(tf.compat.v1.assign(model.embedding_relation, norm_rel))
+        norm_ent = session.run(tf.nn.l2_normalize(model.embedding_entity, axis=1))
+        session.run(tf.compat.v1.assign(model.embedding_entity, norm_ent))
 
         for n_iter in range(args.max_iter):
             accu_loss = 0.
