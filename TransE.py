@@ -47,19 +47,19 @@ class TransE:
     def tr_h(self):
         return self.__tr_h
 
-    def training_data_batch(self, batch_size=512): # generate positive triples and negative triples;
+    def training_data_batch(self, batch_size=512):  # generate positive triples and negative triples;
         n_triple = len(self.__triple_train)
         rand_idx = np.random.permutation(n_triple)
         start = 0
         while start < n_triple:
             start_t = timeit.default_timer()
             end = min(start + batch_size, n_triple)
-            size = end - start # 基本就是batch_size;
+            size = end - start  # 基本就是batch_size;
             train_triple_positive = np.asarray([self.__triple_train[x] for x in rand_idx[start:end]])
             train_triple_negative = []
-            for t in train_triple_positive: # this loop procedure is to create negative samples;
+            for t in train_triple_positive:  # this loop procedure is to create negative samples;
                 replace_entity_id = np.random.randint(self.__num_entity)
-                random_num = np.random.random() # floats in [0, 1);
+                random_num = np.random.random()  # floats in [0, 1);
 
                 if self.__negative_sampling == 'unif':
                     replace_head_probability = 0.5
@@ -69,12 +69,12 @@ class TransE:
                     raise NotImplementedError("Dose not support %s negative_sampling" % negative_sampling)
 
                 if random_num < replace_head_probability:
-                    train_triple_negative.append((replace_entity_id, t[1], t[2])) # false triple replaced head entity
+                    train_triple_negative.append((replace_entity_id, t[1], t[2]))  # false triple replaced head entity
                 else:
-                    train_triple_negative.append((t[0], t[1], replace_entity_id)) # false triple replaced tail entity
+                    train_triple_negative.append((t[0], t[1], replace_entity_id))  # false triple replaced tail entity
 
-            start = end # add a batch size;
-            prepare_t = timeit.default_timer() - start_t # calculate time;
+            start = end  # add a batch size;
+            prepare_t = timeit.default_timer() - start_t  # calculate time;
 
             yield train_triple_positive, train_triple_negative, prepare_t
 
@@ -117,10 +117,10 @@ class TransE:
         self.__evaluation_size = evaluation_size
         bound = 6 / math.sqrt(self.__dimension)
         #		with tf.device('/cpu'):
-        self.__embedding_entity = tf.get_variable('embedding_entity', [self.__num_entity, self.__dimension],
+        self.__embedding_entity = tf.compat.v1.get_variable('embedding_entity', [self.__num_entity, self.__dimension],
                                                   initializer=tf.random_uniform_initializer(minval=-bound, maxval=bound,
                                                                                             seed=123))
-        self.__embedding_relation = tf.get_variable('embedding_relation', [self.__num_relation, self.__dimension],
+        self.__embedding_relation = tf.compat.v1.get_variable('embedding_relation', [self.__num_relation, self.__dimension],
                                                     initializer=tf.random_uniform_initializer(minval=-bound,
                                                                                               maxval=bound, seed=124))
         self.__variables.append(self.__embedding_entity)
@@ -138,7 +138,7 @@ class TransE:
                                   f.readlines()}
             self.__id2relation = {value: key for key, value in self.__relation2id.items()}
 
-        def load_triple(self, triplefile): # generate triple list for train, test and valid;
+        def load_triple(self, triplefile):  # generate triple list for train, test and valid;
             triple_list = []  # [(head_id, relation_id, tail_id),...]
             with open(os.path.join(self.__data_dir, triplefile)) as f:
                 for line in f.readlines():
@@ -178,10 +178,10 @@ class TransE:
                                              range(self.__num_relation)}  # {relation_id:[tailid1, tailid2,...]}
             for t in self.__triple_train:
                 # print(t)
-                self.__relation_property_head[t[1]].append(t[0])
-                self.__relation_property_tail[t[1]].append(t[2])
+                self.__relation_property_head[t[1]].append(t[0])  # combine relation with head;
+                self.__relation_property_tail[t[1]].append(t[2])  # combine relation with tail;
             self.__relation_property = {x: (len(set(self.__relation_property_tail[x]))) / (
-                        len(set(self.__relation_property_head[x])) + len(set(self.__relation_property_tail[x]))) \
+                    len(set(self.__relation_property_head[x])) + len(set(self.__relation_property_tail[x]))) \
                                         for x in
                                         self.__relation_property_head.keys()}  # {relation_id: p, ...} 0< num <1, and for relation replace head entity with the property p
         else:
@@ -246,8 +246,8 @@ class TransE:
 
 def train_operation(model, learning_rate=0.01, margin=1.0, optimizer_str='gradient'):
     #	with tf.device('/cpu'):
-    train_triple_positive_input = tf.placeholder(tf.int32, [None, 3])
-    train_triple_negative_input = tf.placeholder(tf.int32, [None, 3])
+    train_triple_positive_input = tf.compat.v1.placeholder(tf.int32, [None, 3])
+    train_triple_negative_input = tf.compat.v1.placeholder(tf.int32, [None, 3])
 
     loss, loss_every, norm_entity = model.train([train_triple_positive_input, train_triple_negative_input])
     if optimizer_str == 'gradient':
@@ -255,7 +255,7 @@ def train_operation(model, learning_rate=0.01, margin=1.0, optimizer_str='gradie
     elif optimizer_str == 'rms':
         optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
     elif optimizer_str == 'adam':
-        optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+        optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate)
     else:
         raise NotImplementedError("Dose not support %s optimizer" % optimizer_str)
 
@@ -267,7 +267,7 @@ def train_operation(model, learning_rate=0.01, margin=1.0, optimizer_str='gradie
 
 def test_operation(model):
     #	with tf.device('/cpu'):
-    test_triple = tf.placeholder(tf.int32, [3])
+    test_triple = tf.compat.v1.placeholder(tf.int32, [3])
     print('finish palceholder')
     head_rank, tail_rank, norm_head_rank, norm_tail_rank = model.test(test_triple)
     print('finish model.test')
@@ -300,20 +300,20 @@ def main():
                         default=1e-5)
     parser.add_argument('--n_test', dest='n_test', type=int, help='number of triples for test during the training',
                         default=300)
-    args = parser.parse_args()
+    args = parser.parse_args() # 这个估计是在接受参数吧；
     print(args)
     model = TransE(negative_sampling=args.negative_sampling, data_dir=args.data_dir,
                    learning_rate=args.learning_rate, batch_size=args.batch_size,
                    max_iter=args.max_iter, margin=args.margin,
                    dimension=args.dimension, norm=args.norm, evaluation_size=args.evaluation_size,
-                   regularizer_weight=args.regularizer_weight)
+                   regularizer_weight=args.regularizer_weight) # 这应该是一个构造函数吧;
 
     train_triple_positive_input, train_triple_negative_input, loss, op_train, loss_every, norm_entity = train_operation(
         model, learning_rate=args.learning_rate, margin=args.margin, optimizer_str=args.optimizer)
     test_triple, head_rank, tail_rank, norm_head_rank, norm_tail_rank = test_operation(model)
 
-    with tf.Session() as session:
-        tf.initialize_all_variables().run()
+    with tf.compat.v1.Session() as session:
+        tf.compat.v1.global_variables_initializer().run()
 
         norm_rel = session.run(tf.nn.l2_normalize(model.embedding_relation, dim=1))
         session.run(tf.assign(model.embedding_relation, norm_rel))
@@ -336,7 +336,7 @@ def main():
                       end='\r')
                 prepare_time += t
             print('iter[%d] ---loss: %.5f ---time: %.2f ---prepare time : %.2f' % (
-            n_iter, accu_loss, timeit.default_timer() - start_time, prepare_time))
+                n_iter, accu_loss, timeit.default_timer() - start_time, prepare_time))
 
             if n_iter % args.evaluate_per_iteration == 0 or n_iter == 0 or n_iter == args.max_iter - 1:
                 # print("[iter %d] after l2 normalization the entity vectors: %s"%(n_iter, str(norm_e[:10])))
@@ -444,16 +444,16 @@ def main():
                     np.asarray(np.asarray(norm_filter_rank_tail) < 10, dtype=np.float32)) / n_test
 
                 print('iter:%d --mean rank: %.2f --hit@10: %.2f' % (
-                n_iter, (mean_rank_head + mean_rank_tail) / 2, (hit10_tail + hit10_head) / 2))
+                    n_iter, (mean_rank_head + mean_rank_tail) / 2, (hit10_tail + hit10_head) / 2))
                 print('iter:%d --filter mean rank: %.2f --filter hit@10: %.2f' % (
-                n_iter, (filter_mean_rank_head + filter_mean_rank_tail) / 2,
-                (filter_hit10_tail + filter_hit10_head) / 2))
+                    n_iter, (filter_mean_rank_head + filter_mean_rank_tail) / 2,
+                    (filter_hit10_tail + filter_hit10_head) / 2))
 
                 print('iter:%d --norm mean rank: %.2f --norm hit@10: %.2f' % (
-                n_iter, (norm_mean_rank_head + norm_mean_rank_tail) / 2, (norm_hit10_tail + norm_hit10_head) / 2))
+                    n_iter, (norm_mean_rank_head + norm_mean_rank_tail) / 2, (norm_hit10_tail + norm_hit10_head) / 2))
                 print('iter:%d --norm filter mean rank: %.2f --norm filter hit@10: %.2f' % (
-                n_iter, (norm_filter_mean_rank_head + norm_filter_mean_rank_tail) / 2,
-                (norm_filter_hit10_tail + norm_filter_hit10_head) / 2))
+                    n_iter, (norm_filter_mean_rank_head + norm_filter_mean_rank_tail) / 2,
+                    (norm_filter_hit10_tail + norm_filter_hit10_head) / 2))
 
 
 if __name__ == "__main__":
