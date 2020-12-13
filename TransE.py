@@ -309,7 +309,7 @@ def main():
                    regularizer_weight=args.regularizer_weight) # 这应该是一个构造函数吧;
 
     train_triple_positive_input, train_triple_negative_input, loss, op_train, loss_every, norm_entity = train_operation(
-        model, learning_rate=args.learning_rate, margin=args.margin, optimizer_str=args.optimizer)
+        model, learning_rate=args.learning_rate, margin=args.margin, optimizer_str=args.optimizer) # 生成的model用在这里;
     test_triple, head_rank, tail_rank, norm_head_rank, norm_tail_rank = test_operation(model)
 
     with tf.compat.v1.Session() as session:
