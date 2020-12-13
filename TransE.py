@@ -315,9 +315,9 @@ def main():
     with tf.compat.v1.Session() as session:
         tf.compat.v1.global_variables_initializer().run()
 
-        norm_rel = session.run(tf.nn.l2_normalize(model.embedding_relation, axis=1))
+        norm_rel = session.run(tf.nn.l2_normalize(model.embedding_relation, axis=1))  # uniform each relation;
         session.run(tf.compat.v1.assign(model.embedding_relation, norm_rel))
-        norm_ent = session.run(tf.nn.l2_normalize(model.embedding_entity, axis=1))
+        norm_ent = session.run(tf.nn.l2_normalize(model.embedding_entity, axis=1)) # uniform each entity; 
         session.run(tf.compat.v1.assign(model.embedding_entity, norm_ent))
 
         for n_iter in range(args.max_iter):
