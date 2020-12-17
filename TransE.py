@@ -118,11 +118,18 @@ class TransE:
         bound = 6 / math.sqrt(self.__dimension)
         #		with tf.device('/cpu'):
         self.__embedding_entity = tf.compat.v1.get_variable('embedding_entity', [self.__num_entity, self.__dimension],
-                                                  initializer=tf.random_uniform_initializer(minval=-bound, maxval=bound,
-                                                                                            seed=123))
-        self.__embedding_relation = tf.compat.v1.get_variable('embedding_relation', [self.__num_relation, self.__dimension],
-                                                    initializer=tf.random_uniform_initializer(minval=-bound,
-                                                                                              maxval=bound, seed=124))
+                                                            initializer=tf.random_uniform_initializer(minval=-bound,
+                                                                                                      maxval=bound,
+                                                                                                      seed=123))
+        # All embeddings for entities and relationships are first initialized following the random procedure proposed in [4];
+
+        self.__embedding_relation = tf.compat.v1.get_variable('embedding_relation',
+                                                              [self.__num_relation, self.__dimension],
+                                                              initializer=tf.random_uniform_initializer(minval=-bound,
+                                                                                                        maxval=bound,
+                                                                                                        seed=124))
+        # All embeddings for entities and relationships are first initialized following the random procedure proposed in [4];
+
         self.__variables.append(self.__embedding_entity)
         self.__variables.append(self.__embedding_relation)
         print('finishing initializing')
@@ -300,47 +307,51 @@ def main():
                         default=1e-5)
     parser.add_argument('--n_test', dest='n_test', type=int, help='number of triples for test during the training',
                         default=300)
-    args = parser.parse_args() # 这个估计是在接受参数吧；
+    args = parser.parse_args()  # 这个估计是在接受参数吧；
     print(args)
     model = TransE(negative_sampling=args.negative_sampling, data_dir=args.data_dir,
                    learning_rate=args.learning_rate, batch_size=args.batch_size,
                    max_iter=args.max_iter, margin=args.margin,
                    dimension=args.dimension, norm=args.norm, evaluation_size=args.evaluation_size,
-                   regularizer_weight=args.regularizer_weight) # 这应该是一个构造函数吧;
+                   regularizer_weight=args.regularizer_weight)  # 这应该是一个构造函数吧;
 
     train_triple_positive_input, train_triple_negative_input, loss, op_train, loss_every, norm_entity = train_operation(
-        model, learning_rate=args.learning_rate, margin=args.margin, optimizer_str=args.optimizer) # 生成的model用在这里;
+        model, learning_rate=args.learning_rate, margin=args.margin, optimizer_str=args.optimizer)  # 生成的model用在这里;
     test_triple, head_rank, tail_rank, norm_head_rank, norm_tail_rank = test_operation(model)
 
-    with tf.compat.v1.Session() as session:
+    with tf.compat.v1.Session() as sess:
         tf.compat.v1.global_variables_initializer().run()
 
-        norm_rel = session.run(tf.nn.l2_normalize(model.embedding_relation, axis=1))  # uniform each relation;
-        session.run(tf.compat.v1.assign(model.embedding_relation, norm_rel))
-        norm_ent = session.run(tf.nn.l2_normalize(model.embedding_entity, axis=1)) # uniform each entity; 
-        session.run(tf.compat.v1.assign(model.embedding_entity, norm_ent))
+        norm_rel = sess.run(tf.nn.l2_normalize(model.embedding_relation, axis=1))  # uniform each relation;
+        sess.run(tf.compat.v1.assign(model.embedding_relation, norm_rel))  # model.embedding_relation <- norm_rel;
+        norm_ent = sess.run(tf.nn.l2_normalize(model.embedding_entity, axis=1))  # uniform each entity;
+        sess.run(tf.compat.v1.assign(model.embedding_entity, norm_ent))  # model.embedding_entity <- norm_ent;
 
-        for n_iter in range(args.max_iter):
+        for n_iter in range(args.max_iter):  # default max_iter = 100;
             accu_loss = 0.
             batch = 0
             num_batch = model.num_triple_train / args.batch_size
             start_time = timeit.default_timer()
             prepare_time = 0.
 
-            for tp, tn, t in model.training_data_batch(batch_size=args.batch_size):
-                l, _, l_every, norm_e = session.run([loss, op_train, loss_every, norm_entity],
-                                                    {train_triple_positive_input: tp, train_triple_negative_input: tn})
+            for tp, tn, t in model.training_data_batch(batch_size=args.batch_size):  # each iteration is one batch;
+                l, _, l_every, norm_e = sess.run([loss, op_train, loss_every, norm_entity],
+                                                 feed_dict={train_triple_positive_input: tp,
+                                                            train_triple_negative_input: tn})
                 accu_loss += l
                 batch += 1
                 print('[%.2f sec](%d/%d): -- loss: %.5f' % (timeit.default_timer() - start_time, batch, num_batch, l),
                       end='\r')
                 prepare_time += t
+
             print('iter[%d] ---loss: %.5f ---time: %.2f ---prepare time : %.2f' % (
                 n_iter, accu_loss, timeit.default_timer() - start_time, prepare_time))
 
             if n_iter % args.evaluate_per_iteration == 0 or n_iter == 0 or n_iter == args.max_iter - 1:
-                # print("[iter %d] after l2 normalization the entity vectors: %s"%(n_iter, str(norm_e[:10])))
-                # print("[iter %d] after training the entity vectors: %s"%(n_iter, str(session.run(tf.sqrt(tf.reduce_sum(model.embedding_entity**2, axis = 1))[:10]))))
+                # write summary at the beginning and the end;
+                # print("[iter %d] after l2 normalization the entity vectors: %s"%(n_iter, str(norm_e[:10]))) print(
+                # "[iter %d] after training the entity vectors: %s"%(n_iter, str(sess.run(tf.sqrt(tf.reduce_sum(
+                # model.embedding_entity**2, axis = 1))[:10]))))
 
                 rank_head = []
                 rank_tail = []
@@ -353,15 +364,16 @@ def main():
                 norm_filter_rank_tail = []
 
                 start = timeit.default_timer()
-                testing_data = model.testing_data
+                testing_data = model.testing_data  # testing_data is __triple_test;
                 hr_t = model.hr_t
                 tr_h = model.tr_h
                 n_test = args.n_test
                 if n_iter == args.max_iter - 1:    n_test = model.num_triple_test
+
                 for i in range(n_test):
                     print('[%.2f sec] --- testing[%d/%d]' % (timeit.default_timer() - start, i + 1, n_test), end='\r')
                     t = testing_data[i]
-                    id_replace_head, id_replace_tail, norm_id_replace_head, norm_id_replace_tail = session.run(
+                    id_replace_head, id_replace_tail, norm_id_replace_head, norm_id_replace_tail = sess.run(
                         [head_rank, tail_rank, norm_head_rank, norm_tail_rank], {test_triple: t})
                     hrank = 0
                     fhrank = 0
