@@ -368,7 +368,8 @@ def main():
                 hr_t = model.hr_t
                 tr_h = model.tr_h
                 n_test = args.n_test
-                if n_iter == args.max_iter - 1:    n_test = model.num_triple_test
+                if n_iter == args.max_iter - 1:
+                    n_test = model.num_triple_test
 
                 for i in range(n_test):
                     print('[%.2f sec] --- testing[%d/%d]' % (timeit.default_timer() - start, i + 1, n_test), end='\r')
