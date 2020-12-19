@@ -15,8 +15,10 @@ def main():
 
     print("Dictionary with values as list:")
     print(d)
-    print(d[2])
-    print(d[8])
+#    print(d[2])
+#    print(d[8])
+    d[(2)].add(9)
+    print(d)
 
 
 

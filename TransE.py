@@ -57,21 +57,21 @@ class TransE:
             size = end - start  # 基本就是batch_size;
             train_triple_positive = np.asarray([self.__triple_train[x] for x in rand_idx[start:end]])
             train_triple_negative = []
-            for t in train_triple_positive:  # this loop procedure is to create negative samples;
+            for triple in train_triple_positive:  # this loop procedure is to create negative samples;
                 replace_entity_id = np.random.randint(self.__num_entity)
                 random_num = np.random.random()  # floats in [0, 1);
 
                 if self.__negative_sampling == 'unif':
                     replace_head_probability = 0.5
                 elif self.__negative_sampling == 'bern':
-                    replace_head_probability = self.__relation_property[t[1]]
+                    replace_head_probability = self.__relation_property[triple[1]]
                 else:
                     raise NotImplementedError("Dose not support %s negative_sampling" % negative_sampling)
 
                 if random_num < replace_head_probability:
-                    train_triple_negative.append((replace_entity_id, t[1], t[2]))  # false triple replaced head entity
+                    train_triple_negative.append((replace_entity_id, triple[1], triple[2]))  # false triple replaced head entity
                 else:
-                    train_triple_negative.append((t[0], t[1], replace_entity_id))  # false triple replaced tail entity
+                    train_triple_negative.append((triple[0], triple[1], replace_entity_id))  # false triple replaced tail entity
 
             start = end  # add a batch size;
             prepare_t = timeit.default_timer() - start_t  # calculate time;
@@ -151,12 +151,12 @@ class TransE:
                 for line in f.readlines():
                     line_list = line.strip().split('\t')
                     assert len(line_list) == 3
-                    headid = self.__entity2id[line_list[0]]
-                    relationid = self.__relation2id[line_list[2]]
-                    tailid = self.__entity2id[line_list[1]]
-                    triple_list.append((headid, relationid, tailid))
-                    self.__hr_t[(headid, relationid)].add(tailid)
-                    self.__tr_h[(tailid, relationid)].add(headid)
+                    head_id = self.__entity2id[line_list[0]]  # head id is got from entity2id;
+                    relation_id = self.__relation2id[line_list[2]]  # relation_id is got from relation2id;
+                    tail_id = self.__entity2id[line_list[1]]
+                    triple_list.append((head_id, relation_id, tail_id))
+                    self.__hr_t[(head_id, relation_id)].add(tail_id)
+                    self.__tr_h[(tail_id, relation_id)].add(head_id)
             return triple_list
 
         self.__hr_t = defaultdict(set)
@@ -180,9 +180,9 @@ class TransE:
 
         if self.__negative_sampling == 'bern':
             self.__relation_property_head = {x: [] for x in
-                                             range(self.__num_relation)}  # {relation_id:[headid1, headid2,...]}
+                                             range(self.__num_relation)}  # {relation_id:[head_id1, head_id2,...]}
             self.__relation_property_tail = {x: [] for x in
-                                             range(self.__num_relation)}  # {relation_id:[tailid1, tailid2,...]}
+                                             range(self.__num_relation)}  # {relation_id:[tail_id1, tail_id2,...]}
             for t in self.__triple_train:
                 # print(t)
                 self.__relation_property_head[t[1]].append(t[0])  # combine relation with head;
@@ -194,11 +194,9 @@ class TransE:
         else:
             print("unif set do'n need to calculate hpt and tph")
 
-    def train(self, inputs):
+    def train(self, triple_positive, triple_negative):
         embedding_relation = self.__embedding_relation
         embedding_entity = self.__embedding_entity
-
-        triple_positive, triple_negative = inputs  # triple_positive:(head_id,relation_id,tail_id)
 
         norm_entity = tf.nn.l2_normalize(embedding_entity, axis=1)
         norm_relation = tf.nn.l2_normalize(embedding_relation, axis=1)
@@ -223,11 +221,10 @@ class TransE:
             tf.abs(self.__embedding_entity))
         return loss_triple, loss_every, norm_entity_l2sum  # + loss_regularizer*self.__regularizer_weight
 
-    def test(self, inputs):
+    def test(self, triple_test):
         embedding_relation = self.__embedding_relation
         embedding_entity = self.__embedding_entity
 
-        triple_test = inputs  # (headid, tailid, tailid)
         head_vec = tf.nn.embedding_lookup(embedding_entity, triple_test[0])
         rel_vec = tf.nn.embedding_lookup(embedding_relation, triple_test[1])
         tail_vec = tf.nn.embedding_lookup(embedding_entity, triple_test[2])
@@ -256,7 +253,7 @@ def train_operation(model, learning_rate=0.01, margin=1.0, optimizer_str='gradie
     train_triple_positive_input = tf.compat.v1.placeholder(tf.int32, [None, 3])
     train_triple_negative_input = tf.compat.v1.placeholder(tf.int32, [None, 3])
 
-    loss, loss_every, norm_entity = model.train([train_triple_positive_input, train_triple_negative_input])
+    loss, loss_every, norm_entity = model.train(train_triple_positive_input, train_triple_negative_input)
     if optimizer_str == 'gradient':
         optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
     elif optimizer_str == 'rms':
@@ -293,7 +290,7 @@ def main():
     parser.add_argument('--dimension', dest='dimension', type=int, help='embedding dimension', default=50)
     parser.add_argument('--margin', dest='margin', type=float, help='margin', default=1.0)
     parser.add_argument('--norm', dest='norm', type=str, help='L1 or L2 norm', default='L1')
-    parser.add_argument('--evaluation_size', dest='evaluation_size', type=int, help='batchsize for evaluation',
+    parser.add_argument('--evaluation_size', dest='evaluation_size', type=int, help='batch size for evaluation',
                         default=500)
     parser.add_argument('--save_dir', dest='save_dir', type=str,
                         help='directory to save tensorflow checkpoint directory', default='output/')
@@ -337,7 +334,8 @@ def main():
             for tp, tn, t in model.training_data_batch(batch_size=args.batch_size):  # each iteration is one batch;
                 l, _, l_every, norm_e = sess.run([loss, op_train, loss_every, norm_entity],
                                                  feed_dict={train_triple_positive_input: tp,
-                                                            train_triple_negative_input: tn})
+                                                            train_triple_negative_input: tn})  # use train_operation;
+
                 accu_loss += l
                 batch += 1
                 print('[%.2f sec](%d/%d): -- loss: %.5f' % (timeit.default_timer() - start_time, batch, num_batch, l),
@@ -365,17 +363,17 @@ def main():
 
                 start = timeit.default_timer()
                 testing_data = model.testing_data  # testing_data is __triple_test;
-                hr_t = model.hr_t
-                tr_h = model.tr_h
-                n_test = args.n_test
+                hr_t = model.hr_t  # triple structure is (head, relation, tail);
+                tr_h = model.tr_h  # triple structure is (tail, relation, head);
+                n_test = args.n_test # number of triples for test during the training;
                 if n_iter == args.max_iter - 1:
-                    n_test = model.num_triple_test
+                    n_test = model.num_triple_test # len(__triple_test)
 
                 for i in range(n_test):
                     print('[%.2f sec] --- testing[%d/%d]' % (timeit.default_timer() - start, i + 1, n_test), end='\r')
                     t = testing_data[i]
                     id_replace_head, id_replace_tail, norm_id_replace_head, norm_id_replace_tail = sess.run(
-                        [head_rank, tail_rank, norm_head_rank, norm_tail_rank], {test_triple: t})
+                        [head_rank, tail_rank, norm_head_rank, norm_tail_rank], feed_dict={test_triple: t})
                     hrank = 0
                     fhrank = 0
                     for i in range(len(id_replace_head)):
